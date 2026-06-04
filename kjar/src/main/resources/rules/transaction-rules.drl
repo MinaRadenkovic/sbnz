@@ -1,0 +1,198 @@
+package com.ftn.sbnz.rules;
+
+import com.ftn.sbnz.model.Transaction;
+import com.ftn.sbnz.model.FinancialSummary;
+import java.math.BigDecimal;
+import java.util.Date;
+
+declare Transaction
+    @role(event)
+    @timestamp(date)
+    @expires(24h)
+end
+
+rule "Validate amount"
+when
+    $t : Transaction( amount < 0 )
+then
+    $t.setError("nevalidan_unos");
+    $t.addWarning("Iznos je negativan");
+    update($t);
+end
+
+rule "Validate date"
+when
+    $t : Transaction( date == null )
+then
+    $t.setError("nedostaje_datum");
+    $t.addWarning("Datum nije unesen");
+    update($t);
+end
+
+rule "Validate date in future"
+when
+    $t : Transaction( date != null, date.after( new Date() ) )
+then
+    $t.setError("nevalidan_unos");
+    $t.addWarning("Datum ne može biti u budućnosti");
+    update($t);
+end
+
+rule "Basic classification purchase"
+when
+    $t : Transaction( type == "kupovina", error == null )
+then
+    $t.setCategory("trosak");
+    update($t);
+end
+
+rule "Basic classification sale"
+when
+    $t : Transaction( type == "prodaja", error == null )
+then
+    $t.setCategory("prihod");
+    update($t);
+end
+
+rule "Basic classification salary"
+when
+    $t : Transaction( type == "plata", error == null )
+then
+    $t.setCategory("trosak");
+    update($t);
+end
+
+rule "Detect large transaction"
+when
+    $t : Transaction( amount >= 100000, error == null )
+then
+    $t.setLargeTransaction(true);
+    $t.addWarning("Velika transakcija");
+    update($t);
+end
+
+rule "Cash expense booking"
+when
+    $t : Transaction( category == "trosak", paymentMethod == "gotovina", error == null )
+then
+    $t.setJournalDebit("troskovi");
+    $t.setJournalCredit("kasa");
+    update($t);
+end
+
+rule "Bank transfer expense booking"
+when
+    $t : Transaction( category == "trosak", paymentMethod == "bankovni_transfer", error == null )
+then
+    $t.setJournalDebit("troskovi");
+    $t.setJournalCredit("tekuci_racun");
+    update($t);
+end
+
+rule "Income booking"
+when
+    $t : Transaction( category == "prihod", error == null )
+then
+    $t.setJournalDebit("kupci");
+    $t.setJournalCredit("prihod");
+    update($t);
+end
+
+rule "Tax review for expense without PDV"
+when
+    $t : Transaction( pdv == false, category == "trosak", error == null )
+then
+    $t.setTaxReview(true);
+    $t.setPotentialTaxProblem(true);
+    $t.addWarning("poreska_provera_true");
+    $t.addWarning("nedostaje_PDV");
+    update($t);
+end
+
+rule "Transaction is valid"
+when
+    $t : Transaction( error == null, journalDebit != null, journalCredit != null )
+then
+    $t.setValid(true);
+    update($t);
+end
+
+rule "Transaction is invalid"
+when
+    $t : Transaction( error != null )
+then
+    $t.setValid(false);
+    update($t);
+end
+
+rule "Sum income"
+when
+    $summary : FinancialSummary()
+    $income : Number() from accumulate( $t : Transaction( category == "prihod", amount > 0 ), sum( $t.getAmount().doubleValue() ) )
+then
+    $summary.setTotalIncome(BigDecimal.valueOf($income.doubleValue()));
+    update($summary);
+end
+
+rule "Sum expense"
+when
+    $summary : FinancialSummary()
+    $expense : Number() from accumulate( $t : Transaction( category == "trosak", amount > 0 ), sum( $t.getAmount().doubleValue() ) )
+then
+    $summary.setTotalExpense(BigDecimal.valueOf($expense.doubleValue()));
+    update($summary);
+end
+
+rule "Financial state profit"
+when
+    $summary : FinancialSummary( totalIncome > totalExpense )
+then
+    $summary.setFinancialState("dobit");
+    update($summary);
+end
+
+rule "Financial state loss"
+when
+    $summary : FinancialSummary( totalExpense > totalIncome )
+then
+    $summary.setFinancialState("gubitak");
+    update($summary);
+end
+
+rule "Financial state neutral"
+when
+    $summary : FinancialSummary( totalIncome == totalExpense )
+then
+    $summary.setFinancialState("neutralno");
+    update($summary);
+end
+
+rule "CEP suspicious activity"
+when
+    $summary : FinancialSummary()
+    $count : Number() from accumulate( $t : Transaction( largeTransaction == true, date != null, date.after( new Date( System.currentTimeMillis() - 24 * 60 * 60 * 1000L ) ) ) from entry-point TransactionStream, count( $t ) )
+    eval( $count.intValue() >= 3 )
+then
+    $summary.addWarning("sumnjiva_aktivnost");
+    update($summary);
+end
+
+rule "CEP repeated transactions"
+when
+    $summary : FinancialSummary()
+    $count : Number() from accumulate( $t : Transaction( type == "kupovina", date != null, date.after( new Date( System.currentTimeMillis() - 60 * 60 * 1000L ) ) ) from entry-point TransactionStream, count( $t ) )
+    eval( $count.intValue() > 5 )
+then
+    $summary.addWarning("ucestalo_ponavljanje_transakcija");
+    update($summary);
+end
+
+rule "CEP risky cash pattern"
+when
+    $summary : FinancialSummary()
+    $count : Number() from accumulate( $t : Transaction( paymentMethod == "gotovina", largeTransaction == true, date != null, date.after( new Date( System.currentTimeMillis() - 24 * 60 * 60 * 1000L ) ) ) from entry-point TransactionStream, count( $t ) )
+    eval( $count.intValue() > 3 )
+then
+    $summary.addWarning("rizicno_ponasanje");
+    update($summary);
+end

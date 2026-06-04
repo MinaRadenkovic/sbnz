@@ -1,0 +1,51 @@
+@startuml
+package "Model" {
+  class Transaction {
+    - String id
+    - String type
+    - BigDecimal amount
+    - Date date
+    - String paymentMethod
+    - String description
+    - boolean pdv
+    - String category
+    - boolean largeTransaction
+    - boolean potentialTaxProblem
+    - String journalDebit
+    - String journalCredit
+    - boolean valid
+    - String error
+    - List<String> warnings
+    + addWarning(String)
+  }
+
+  class FinancialSummary {
+    - BigDecimal totalIncome
+    - BigDecimal totalExpense
+    - String financialState
+    - List<String> warnings
+    + addWarning(String)
+  }
+}
+
+package "Backend" {
+  class TransactionProcessor {
+    + FinancialSummary process(List<Transaction>)
+  }
+
+  class ConsoleRunner {
+    + void run(String[])
+  }
+
+  class ServiceApplication {
+    + KieContainer kieContainer()
+    + void main(String[])
+  }
+}
+
+TransactionProcessor --> Transaction
+TransactionProcessor --> FinancialSummary
+ConsoleRunner --> TransactionProcessor
+ServiceApplication --> TransactionProcessor
+ServiceApplication --> KieContainer
+@enduml
