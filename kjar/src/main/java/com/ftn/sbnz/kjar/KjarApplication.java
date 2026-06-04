@@ -1,4 +1,4 @@
-package com.fnt.sbnz.kjar;
+package com.ftn.sbnz.kjar;
 
 public class KjarApplication {
 

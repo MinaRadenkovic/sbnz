@@ -1,4 +1,4 @@
-package com.fnt.sbnz.service;
+package com.ftn.sbnz.service;
 
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieScanner;

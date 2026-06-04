@@ -1,4 +1,4 @@
-package com.fnt.sbnz.model;
+package com.ftn.sbnz.model;
 
 
 
