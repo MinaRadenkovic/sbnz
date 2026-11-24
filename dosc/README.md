@@ -14,6 +14,3 @@ This folder contains the class diagram for the backend solution and instructions
    ```
 3. Aplikacija će pokrenuti konzolni interfejs i tražiti unos transakcija.
 
-## Diagram
-
-Pregledajte `class_diagram.puml` u PlantUML podržanom editoru ili koristite PlantUML da generišete sliku.

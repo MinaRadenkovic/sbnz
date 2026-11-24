@@ -2,7 +2,6 @@ package com.ftn.sbnz.service;
 
 import com.ftn.sbnz.model.FinancialSummary;
 import com.ftn.sbnz.model.Transaction;
-import org.kie.api.KieServices;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.EntryPoint;
@@ -31,7 +30,9 @@ public class TransactionProcessor {
             EntryPoint stream = kieSession.getEntryPoint("TransactionStream");
             for (Transaction transaction : transactionHistory) {
                 kieSession.insert(transaction);
-                stream.insert(transaction);
+                if (transaction.getDate() != null) {
+                    stream.insert(transaction);
+                }
             }
             kieSession.fireAllRules();
             return summary;

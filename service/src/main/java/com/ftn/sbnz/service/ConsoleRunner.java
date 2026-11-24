@@ -29,28 +29,21 @@ public class ConsoleRunner implements CommandLineRunner {
         Scanner scanner = new Scanner(System.in);
         List<Transaction> history = new ArrayList<>();
 
-        System.out.println("=== Konsolni sistem za automatsko knjiženje i CEP ===");
+        System.out.println("=== Konzolni sistem za automatsko knjiženje i CEP ===");
         System.out.println("Unesite transakcije; prazan tip za kraj.");
 
         while (true) {
-            System.out.print("Tip transakcije (kupovina/prodaja/plata): ");
-            String type = scanner.nextLine().trim();
+            String type = prompt(scanner, "Tip transakcije (kupovina/prodaja/plata): ");
             if (type.isBlank()) {
                 break;
             }
 
-            System.out.print("Iznos: ");
-            String amountText = scanner.nextLine().trim();
-            System.out.print("Datum (yyyy-MM-dd HH:mm): ");
-            String dateText = scanner.nextLine().trim();
-            System.out.print("Način plaćanja (gotovina/bankovni_transfer/kartica): ");
-            String paymentMethod = scanner.nextLine().trim();
-            System.out.print("PDV obračunat (true/false): ");
-            String pdvText = scanner.nextLine().trim();
-            System.out.print("Opis: ");
-            String description = scanner.nextLine().trim();
-            System.out.print("Kategorija (ostavi prazno za automatsku klasifikaciju): ");
-            String category = scanner.nextLine().trim();
+            String amountText = prompt(scanner, "Iznos: ");
+            String dateText = prompt(scanner, "Datum (yyyy-MM-dd HH:mm): ");
+            String paymentMethod = prompt(scanner, "Način plaćanja (gotovina/bankovni_transfer/kartica): ");
+            String pdvText = prompt(scanner, "PDV obračunat (true/false): ");
+            String description = prompt(scanner, "Opis: ");
+            String category = prompt(scanner, "Kategorija (ostavi prazno za automatsku klasifikaciju): ");
 
             Transaction transaction = new Transaction();
             transaction.setId(UUID.randomUUID().toString());
@@ -65,8 +58,16 @@ public class ConsoleRunner implements CommandLineRunner {
             }
             history.add(transaction);
 
-            FinancialSummary summary = transactionProcessor.process(history);
-            printTransactionResult(transaction, summary);
+            System.out.println("Obrada transakcije...\n");
+            try {
+                FinancialSummary summary = transactionProcessor.process(history);
+                printTransactionResult(transaction, summary);
+            } catch (Exception e) {
+                System.out.println("Greška pri obradi transakcije: " + e.getMessage());
+                e.printStackTrace(System.out);
+            }
+            System.out.println("Unesite sledeću transakciju ili pritisnite Enter za kraj.");
+            System.out.println();
         }
 
         System.out.println("Kraj unosa. Konačni finansijski izveštaj:");
@@ -76,7 +77,12 @@ public class ConsoleRunner implements CommandLineRunner {
         } else {
             System.out.println("Nije uneta nijedna transakcija.");
         }
-        scanner.close();
+    }
+
+    private String prompt(Scanner scanner, String message) {
+        System.out.print(message);
+        System.out.flush();
+        return scanner.nextLine().trim();
     }
 
     private BigDecimal parseAmount(String amountText) {
